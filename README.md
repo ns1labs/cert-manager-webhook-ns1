@@ -3,10 +3,10 @@
 This solver can be used when you want to use cert-manager with NS1 API. API documentation is [here](https://ns1.com/api)
 
 ## Requirements
--   [go](https://golang.org/) >= 1.13.0
+-   [go](https://golang.org/) >= 1.16.0
 -   [helm](https://helm.sh/) >= v3.0.0
--   [kubernetes](https://kubernetes.io/) >= v1.14.0
--   [cert-manager](https://cert-manager.io/) >= 0.12.0
+-   [kubernetes](https://kubernetes.io/) >= v1.21.0
+-   [cert-manager](https://cert-manager.io/) >= v1.6.1
 
 ## Installation
 
