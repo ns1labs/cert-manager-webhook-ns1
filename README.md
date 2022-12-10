@@ -1,6 +1,6 @@
 # ACME webhook for NS1 DNS API
 
-This solver plug in can be used when you want to use cert-manager to resolve letsencrypt DNS challenges when you domain is hosted by NS1 managed DNS. API documentation is [here](https://ns1.com/api)
+This solver plug in for cert-manager is used on kubernetes to resolve letsencrypt DNS challenges considering your domain is hosted by NS1 managed DNS. API documentation is [here](https://ns1.com/api)
 
 ## Requirements
 -   [go](https://golang.org/) >= 1.16.0
