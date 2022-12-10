@@ -1,6 +1,6 @@
 # ACME webhook for NS1 DNS API
 
-This solver can be used when you want to use cert-manager with NS1 API. API documentation is [here](https://ns1.com/api)
+This solver plug in can be used when you want to use cert-manager to resolve letsencrypt DNS challenges when you domain is hosted by NS1 managed DNS. API documentation is [here](https://ns1.com/api)
 
 ## Requirements
 -   [go](https://golang.org/) >= 1.16.0
@@ -10,7 +10,8 @@ This solver can be used when you want to use cert-manager with NS1 API. API docu
 
 ## Installation
 
-#### 1 - Log in on ns1.com and obtain an api secret, so create a k8s secret with index api-key on cert-manager namespace, such as:
+#### 1 - Get your NS1 API key:
+Log in on ns1.com and obtain an api secret, so create a k8s secret with index api-key on cert-manager namespace, such as:
 
 ```bash
 kubectl create secret generic ns1-api-secret --from-literal=api-key='xxxxxxx' -n cert-manager
