@@ -11,7 +11,7 @@ This solver plug in for cert-manager is used on kubernetes to resolve letsencryp
 ## Installation
 
 #### 1 - Get your NS1 API key:
-Log in on ns1.com and obtain an api secret, so create a k8s secret with index api-key on cert-manager namespace, such as:
+Log in on ns1.com and obtain an api secret, so create a k8s secret with index **api-key** on cert-manager namespace, such as:
 
 ```bash
 kubectl create secret generic ns1-api-secret --from-literal=api-key='xxxxxxx' -n cert-manager
