@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
 
 	"github.com/jetstack/cert-manager/pkg/acme/webhook/apis/acme/v1alpha1"
 	"github.com/jetstack/cert-manager/pkg/acme/webhook/cmd"
@@ -28,6 +28,7 @@ func main() {
 	if GroupName == "" {
 		panic("GROUP_NAME must be specified")
 	}
+	log.Println("Starting cert-manager webhook NS1")
 	cmd.RunWebhookServer(GroupName,
 		&ns1DNSProviderSolver{ctx: ctx},
 	)
@@ -51,27 +52,26 @@ func (c *ns1DNSProviderSolver) Name() string {
 }
 
 func (c *ns1DNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
-	klog.V(6).Infof("call function Present: namespace=%s, zone=%s, fqdn=%s", ch.ResourceNamespace, ch.ResolvedZone, ch.ResolvedFQDN)
+	log.Println("Call function Present: namespace=", ch.ResourceNamespace, " zone=", ch.ResolvedZone, " fqdn=", ch.ResolvedFQDN)
 
 	cfg, err := c.clientConfig(c.ctx, ch)
 	if err != nil {
 		return err
 	}
-	// Create TXT record
+
 	c.createTxtRecord(cfg, ch)
 
 	return nil
 }
 
 func (c *ns1DNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
-	klog.V(6).Infof("call function CleanUp: namespace=%s, zone=%s, fqdn=%s", ch.ResourceNamespace, ch.ResolvedZone, ch.ResolvedFQDN)
+	log.Println("Call function CleanUp: namespace=", ch.ResourceNamespace, " zone=", ch.ResolvedZone, " fqdn=", ch.ResolvedFQDN)
 
 	cfg, err := c.clientConfig(c.ctx, ch)
 	if err != nil {
 		return err
 	}
 
-	// Delete TXT record
 	c.deleteTxtRecord(cfg, ch)
 
 	return nil
@@ -89,17 +89,14 @@ func (c *ns1DNSProviderSolver) Initialize(kubeClientConfig *rest.Config, stopCh 
 }
 
 // loadConfig is a small helper function that decodes JSON configuration into
-// the typed config struct.
 func loadConfig(cfgJSON *extapi.JSON) (ns1DNSProviderConfig, error) {
 	cfg := ns1DNSProviderConfig{}
-	// handle the 'base case' where no configuration has been provided
 	if cfgJSON == nil {
 		return cfg, nil
 	}
 	if err := json.Unmarshal(cfgJSON.Raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("error decoding solver config: %v", err)
 	}
-
 	return cfg, nil
 }
 
@@ -118,18 +115,20 @@ func getRecordName(fqdn string) string {
 }
 
 func (c *ns1DNSProviderSolver) clientConfig(ctx context.Context, ch *v1alpha1.ChallengeRequest) (ns1DNSProviderConfig, error) {
-	cfg, err := loadConfig(ch.Config)
+	cfg, err := loadConfig((*extapi.JSON)(ch.Config))
 	if err != nil {
 		return cfg, err
 	}
 
 	sec, err := c.client.CoreV1().Secrets(ch.ResourceNamespace).Get(ctx, cfg.ApiKeySecretRef, metav1.GetOptions{})
 	if err != nil {
+		log.Println("Unable to get secret " + cfg.ApiKeySecretRef + "/" + ch.ResourceNamespace)
 		return cfg, fmt.Errorf("unable to get secret `%s/%s`; %v", cfg.ApiKeySecretRef, ch.ResourceNamespace, err)
 	}
 	apiKey, err := stringFromSecretData(&sec.Data, "api-key")
 	cfg.ApiKey = apiKey
 	if err != nil {
+		log.Println("Unable to get api-key from secret ", cfg.ApiKeySecretRef, "/", ch.ResourceNamespace)
 		return cfg, fmt.Errorf("unable to get api-key from secret `%s/%s`; %v", cfg.ApiKeySecretRef, ch.ResourceNamespace, err)
 	}
 	c.setNS1Client(cfg)
@@ -147,23 +146,20 @@ func (c *ns1DNSProviderSolver) setNS1Client(config ns1DNSProviderConfig) {
 func (c *ns1DNSProviderSolver) createTxtRecord(config ns1DNSProviderConfig, ch *v1alpha1.ChallengeRequest) {
 	recName := getRecordName(ch.ResolvedFQDN)
 
-	// check if exists
 	_, _, err := c.ns1api.Records.Get(config.ZoneName, recName, "TXT")
 	if err != nil {
 		newRecord := dns.NewRecord(config.ZoneName, recName, "TXT")
 		newRecord.AddAnswer(dns.NewTXTAnswer(ch.Key))
 		newRecord.TTL = 3600
 
-		//create record
 		_, err := c.ns1api.Records.Create(newRecord)
 		if err != nil {
-			klog.Errorf("unable to create txt record zone=`%s` recordName=`%s`; %v", config.ZoneName, recName, err)
+			log.Println("Unable to create txt record zone=", config.ZoneName, " recordName=", recName, err)
 		}
 
-		klog.Infof("Added TXT record result: %s", string(ch.ResolvedFQDN))
+		log.Println("Added TXT record result: ", string(recName))
 	} else {
-		// record already created
-		klog.Infof("Already Added TXT record result: %s", string(ch.ResolvedFQDN))
+		log.Println("Already Added TXT record result: ", string(recName))
 	}
 }
 
@@ -171,11 +167,10 @@ func (c *ns1DNSProviderSolver) createTxtRecord(config ns1DNSProviderConfig, ch *
 func (c *ns1DNSProviderSolver) deleteTxtRecord(config ns1DNSProviderConfig, ch *v1alpha1.ChallengeRequest) {
 	recName := getRecordName(ch.ResolvedFQDN)
 
-	// delete record
 	_, err := c.ns1api.Records.Delete(config.ZoneName, recName, "TXT")
 	if err != nil {
-		klog.Errorf("unable to delete txt record zone=`%s` recordName=`%s`; %v", config.ZoneName, recName, err)
+		log.Println("Unable to delete txt record zone=", config.ZoneName, " recordName=", recName, err)
 	}
 
-	klog.Infof("Deleted TXT record result: %s", string(ch.ResolvedFQDN))
+	log.Println("Deleted TXT record result:", string(recName))
 }

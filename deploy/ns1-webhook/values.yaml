@@ -13,9 +13,9 @@ certManager:
   serviceAccountName: cert-manager
 
 image:
-  repository: ns1labs/cert-manager-webhook-ns1
+  repository: etaques/cert-manager-webhook-ns1
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 nameOverride: ""
 fullnameOverride: ""
